@@ -20,6 +20,7 @@
 # pylint: disable=W0201
 
 import json
+import yaml
 import logging
 import os
 import shlex
@@ -172,6 +173,22 @@ class RunnerConfig(BaseConfig):
                 self.inventory = os.path.join(self.private_data_dir, "inventory")
         elif isinstance(self.inventory, str) and os.path.exists(self.inventory):
             self.inventory = os.path.abspath(self.inventory)
+        elif isinstance(self.inventory, dict):
+
+            # TODO: Validation
+
+            try:
+                os.makedirs(os.path.join(self.private_data_dir, "inventory"))
+            except FileExistsError:
+                pass
+
+            for inventory_file_name, inventory_content in self.inventory.items():
+                with open(os.path.join(
+                    self.private_data_dir,
+                    "inventory",
+                    inventory_file_name), 'w'
+                ) as fh:
+                    fh.write(yaml.dump(inventory_content))
 
     def prepare_env(self):
         """
@@ -215,6 +232,7 @@ class RunnerConfig(BaseConfig):
 
     def prepare_command(self):
         try:
+            # TODO: This line throws exception?
             cmdline_args = self.loader.load_file('args', str, encoding=None)
             self.command = shlex.split(cmdline_args)
             self.execution_mode = ExecutionMode.RAW
@@ -256,6 +274,9 @@ class RunnerConfig(BaseConfig):
             for i in self.inventory:
                 exec_list.append("-i")
                 exec_list.append(i)
+        elif isinstance(self.inventory, dict):
+            exec_list.append("-i")
+            exec_list.append(os.path.abspath(os.path.join(self.private_data_dir, "inventory")))
         else:
             exec_list.append("-i")
             exec_list.append(self.inventory)
